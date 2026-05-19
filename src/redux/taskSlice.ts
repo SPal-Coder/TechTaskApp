@@ -1,10 +1,13 @@
-import {createSlice, createAsyncThunk, PayloadAction} from '@reduxjs/toolkit';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import {Task} from '../types/task';
 import {
-  saveTasksToStorage,
-  getTasksFromStorage,
-} from '../utils/storage';
+  createSlice,
+  createAsyncThunk,
+  PayloadAction,
+} from '@reduxjs/toolkit';
+
+import {Task} from '../types/task';
+
+import {saveTasksToStorage} from '../utils/storage';
+
 interface TaskState {
   tasks: Task[];
   loading: boolean;
@@ -23,8 +26,15 @@ const initialState: TaskState = {
 
 export const fetchTasks = createAsyncThunk(
   'tasks/fetchTasks',
-  async (page: number) => {
+  async ({
+    page,
+    isRefreshing = false,
+  }: {
+    page: number;
+    isRefreshing?: boolean;
+  }) => {
     const limit = 10;
+
     const skip = (page - 1) * limit;
 
     const response = await fetch(
@@ -37,65 +47,107 @@ export const fetchTasks = createAsyncThunk(
 
     const data = await response.json();
 
-    return data.todos;
+    return {
+      todos: data.todos,
+      page,
+      isRefreshing,
+    };
   },
 );
 
 const taskSlice = createSlice({
   name: 'tasks',
+
   initialState,
+
   reducers: {
     toggleTask(state, action: PayloadAction<number>) {
-      state.tasks = state.tasks.map(item =>
-        item.id === action.payload
-          ? {...item, completed: !item.completed}
-          : item,
+      const index = state.tasks.findIndex(
+        item => item.id === action.payload,
       );
-       saveTasksToStorage(state.tasks);
+
+      if (index !== -1) {
+        state.tasks[index].completed =
+          !state.tasks[index].completed;
+      }
+
+      saveTasksToStorage(state.tasks);
     },
 
     addTask(state, action: PayloadAction<Task>) {
       state.tasks.unshift(action.payload);
-       saveTasksToStorage(state.tasks);
+
+      saveTasksToStorage(state.tasks);
     },
 
     resetTasks(state) {
       state.tasks = [];
       state.page = 1;
     },
+
     setOfflineTasks(state, action) {
-  state.tasks = action.payload;
-},
+      state.tasks = action.payload;
+    },
   },
 
   extraReducers: builder => {
     builder
-      .addCase(fetchTasks.pending, state => {
-        state.loading = true;
+
+      .addCase(fetchTasks.pending, (state, action) => {
+        const isRefreshing =
+          action.meta.arg.isRefreshing;
+
+        if (isRefreshing) {
+          state.refreshing = true;
+        } else {
+          state.loading = true;
+        }
       })
 
       .addCase(fetchTasks.fulfilled, (state, action) => {
         state.loading = false;
+        state.refreshing = false;
 
-        const newTasks = action.payload;
+        const {todos, page, isRefreshing} =
+          action.payload;
 
-        const uniqueTasks = newTasks.filter(
-          newItem =>
-            !state.tasks.some(item => item.id === newItem.id),
-        );
+        if (isRefreshing) {
+          state.tasks = todos;
+        } else {
+          const uniqueTasks = todos.filter(
+            newItem =>
+              !state.tasks.some(
+                item => item.id === newItem.id,
+              ),
+          );
 
-        state.tasks = [...state.tasks, ...uniqueTasks];
-         saveTasksToStorage(state.tasks);
+          state.tasks = [
+            ...state.tasks,
+            ...uniqueTasks,
+          ];
+        }
+
+        state.page = page;
+
+        saveTasksToStorage(state.tasks);
       })
 
       .addCase(fetchTasks.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Something went wrong';
+        state.refreshing = false;
+
+        state.error =
+          action.error.message ||
+          'Something went wrong';
       });
   },
 });
 
-export const {toggleTask, addTask, resetTasks, setOfflineTasks,} =
-  taskSlice.actions;
+export const {
+  toggleTask,
+  addTask,
+  resetTasks,
+  setOfflineTasks,
+} = taskSlice.actions;
 
 export default taskSlice.reducer;

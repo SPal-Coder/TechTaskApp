@@ -55,6 +55,7 @@ const AddTaskScreen = ({navigation}: any) => {
           padding: 12,
           borderRadius: 10,
           color: theme.text,
+          marginBottom:20,
         }}
       />
 

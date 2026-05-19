@@ -5,6 +5,7 @@ import {
   FlatList,
   ActivityIndicator,
   Button,
+  Text,
 } from 'react-native';
 
 import {useDispatch, useSelector} from 'react-redux';
@@ -12,14 +13,18 @@ import {useDispatch, useSelector} from 'react-redux';
 import {
   fetchTasks,
   toggleTask,
+  setOfflineTasks,
 } from '../redux/taskSlice';
 
-import {RootState, AppDispatch} from '../redux/store';
+import {
+  RootState,
+  AppDispatch,
+} from '../redux/store';
+
 import {getTasksFromStorage} from '../utils/storage';
 
-import {setOfflineTasks} from '../redux/taskSlice';
-
 import {useAppTheme} from '../theme/ThemeProvider';
+
 import TaskItem from '../component/TaskItem';
 
 const TaskListScreen = ({navigation}: any) => {
@@ -27,28 +32,56 @@ const TaskListScreen = ({navigation}: any) => {
 
   const dispatch = useDispatch<AppDispatch>();
 
-  const {tasks, loading, page} = useSelector(
+  const {
+    tasks,
+    loading,
+    refreshing,
+    page,
+    error,
+  } = useSelector(
     (state: RootState) => state.tasks,
   );
 
   useEffect(() => {
-  loadTasks();
-}, []);
+    loadTasks();
+  }, []);
 
-const loadTasks = async () => {
-  try {
-    await dispatch(fetchTasks(1)).unwrap();
-  } catch (error) {
-    console.log('Offline Mode');
+  const loadTasks = async () => {
+    try {
+      await dispatch(
+        fetchTasks({
+          page: 1,
+        }),
+      ).unwrap();
+    } catch (error) {
+      console.log('Offline Mode');
 
-    const offlineTasks = await getTasksFromStorage();
+      const offlineTasks =
+        await getTasksFromStorage();
 
-    dispatch(setOfflineTasks(offlineTasks));
-  }
-};
+      dispatch(setOfflineTasks(offlineTasks));
+    }
+  };
 
   const loadMore = () => {
-    dispatch(fetchTasks(page + 1));
+    if (loading || refreshing) {
+      return;
+    }
+
+    dispatch(
+      fetchTasks({
+        page: page + 1,
+      }),
+    );
+  };
+
+  const onRefresh = () => {
+    dispatch(
+      fetchTasks({
+        page: 1,
+        isRefreshing: true,
+      }),
+    );
   };
 
   return (
@@ -60,24 +93,54 @@ const loadTasks = async () => {
       }}>
       <Button
         title="Add Task"
-        onPress={() => navigation.navigate('AddTask')}
+        onPress={() =>
+          navigation.navigate('AddTask')
+        }
       />
+
+      {error && (
+        <Text
+          style={{
+            color: 'red',
+            marginVertical: 10,
+          }}>
+          {error}
+        </Text>
+      )}
 
       <FlatList
         data={tasks}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={item =>
+          item.id.toString()
+        }
         renderItem={({item}) => (
           <TaskItem
             item={item}
-            onPress={() => dispatch(toggleTask(item.id))}
+            onPress={() =>
+              dispatch(toggleTask(item.id))
+            }
           />
         )}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
-        refreshing={loading}
-        onRefresh={() => dispatch(fetchTasks(1))}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        ListEmptyComponent={
+          !loading ? (
+            <Text
+              style={{
+                color: theme.text,
+                marginTop: 30,
+                textAlign: 'center',
+              }}>
+              No Tasks Found
+            </Text>
+          ) : null
+        }
         ListFooterComponent={
-          loading ? <ActivityIndicator /> : null
+          loading ? (
+            <ActivityIndicator />
+          ) : null
         }
       />
     </View>
