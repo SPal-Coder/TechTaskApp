@@ -22,7 +22,10 @@ const AddTaskScreen = ({navigation}: any) => {
 
   const handleAdd = () => {
     if (title.trim().length < 3) {
-      Alert.alert('Minimum 3 characters required');
+      Alert.alert(
+        'Task should be minimum 3 characters',
+      );
+
       return;
     }
 
@@ -31,6 +34,7 @@ const AddTaskScreen = ({navigation}: any) => {
         id: Date.now(),
         todo: title,
         completed: false,
+        isLocal: true,
       }),
     );
 
@@ -47,19 +51,22 @@ const AddTaskScreen = ({navigation}: any) => {
       <TextInput
         value={title}
         onChangeText={setTitle}
-        placeholder="Enter task"
+        placeholder="Enter Task"
         placeholderTextColor="gray"
         style={{
           borderWidth: 1,
           borderColor: theme.border,
-          padding: 12,
           borderRadius: 10,
+          padding: 14,
           color: theme.text,
-          marginBottom:20,
+          marginBottom: 20,
         }}
       />
 
-      <Button title="Save Task" onPress={handleAdd} />
+      <Button
+        title="Save Task"
+        onPress={handleAdd}
+      />
     </View>
   );
 };

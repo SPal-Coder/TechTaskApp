@@ -54,8 +54,6 @@ const TaskListScreen = ({navigation}: any) => {
         }),
       ).unwrap();
     } catch (error) {
-      console.log('Offline Mode');
-
       const offlineTasks =
         await getTasksFromStorage();
 
@@ -125,21 +123,21 @@ const TaskListScreen = ({navigation}: any) => {
         onEndReachedThreshold={0.5}
         refreshing={refreshing}
         onRefresh={onRefresh}
+        ListFooterComponent={
+          loading ? (
+            <ActivityIndicator />
+          ) : null
+        }
         ListEmptyComponent={
           !loading ? (
             <Text
               style={{
                 color: theme.text,
-                marginTop: 30,
                 textAlign: 'center',
+                marginTop: 40,
               }}>
               No Tasks Found
             </Text>
-          ) : null
-        }
-        ListFooterComponent={
-          loading ? (
-            <ActivityIndicator />
           ) : null
         }
       />

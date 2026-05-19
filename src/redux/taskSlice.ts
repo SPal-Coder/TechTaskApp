@@ -112,7 +112,24 @@ const taskSlice = createSlice({
           action.payload;
 
         if (isRefreshing) {
-          state.tasks = todos;
+          const localTasks = state.tasks.filter(
+            item => item.isLocal,
+          );
+
+          const mergedTasks = [
+            ...localTasks,
+            ...todos,
+          ];
+
+          const uniqueTasks = mergedTasks.filter(
+            (item, index, self) =>
+              index ===
+              self.findIndex(
+                t => t.id === item.id,
+              ),
+          );
+
+          state.tasks = uniqueTasks;
         } else {
           const uniqueTasks = todos.filter(
             newItem =>
